@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
+#include <signal.h>
 #define MAXLINE 1024
 #define MAXJOBS 1024
 
@@ -21,13 +21,15 @@ jobdata array[MAXJOBS];
 
 void handle_sigchld(int sig) {
     //int pid=waitpid(-1,NULL,WNOHANG);
-    /*
     int pid;
     while((pid=waitpid(-1,NULL,WNOHANG))!=-1){
-        printf("pid = %d\n",pid);
-        cmd_slay(pid);
+        //write("Dead Child pid = %d\n",pid);
+        char *tok[2];
+        tok[0]="slay";
+        tok[1]=pid+'0';
+        cmd_slay(tok);
     }
-    */
+    
 }
 
 void handle_sigtstp(int sig) {
@@ -43,51 +45,49 @@ void handle_sigquit(int sig) {
 }
 
 void install_signal_handlers() {
-    handle_sigchld(0);
+    struct sigaction act;
+    act.sa_handler=handle_sigchld;
+    act.sa_flags=SA_RESTART;
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGCHLD,&act,NULL);
 }
 
 void spawn(const char **toks, bool bg) { // bg is true iff command ended with &
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask,SIGCHLD);
+    sigprocmask(SIG_BLOCK,&mask,NULL);
     //printf("entered spawn\n");
     int newprocess;
     char buffer[20];
     if(bg==true){//background
-        int fd[2];
-        pipe(fd);//pipeline
         int p = fork();
         
         if(p==0){ //it is a child
-            close(fd[0]);
             newprocess = execvp(toks[0],toks,environ);
             if(newprocess==-1){
                 printf("ERROR: cannot run %s\n",toks[0]);
-                char *message = "Error background";
-                int length = strlen( message );
-                write( fd[1], message, length+1 );
-                exit(0);
+                //sigprocmask(SIG_UNBLOCK,&mask,NULL);
+                //exit(0);
             }
         }
         else{
             //int p2=waitpid(p,NULL,0);
-            close(fd[1]);
 
-            int count = read( fd[0], buffer, 20 );
-            buffer[count] = '\0';
-            //printf( "read message: %s\n", buffer );
-            if ( count <= 0 ) {
-                //perror( "read" );
-                for(int i=0;i<MAXJOBS;i++){
-                    if(array[i].arrayindex==NULL&&array[i].pid==NULL){
-                        array[i].arrayindex=i+1;
-                        array[i].pid=p;
-                        array[i].status=malloc(0);
-                        memcpy(array[i].status,"",0);
-                        array[i].commandname=malloc(strlen(toks[0]));
-                        memcpy(array[i].commandname, toks[0], strlen(toks[0]));
-                        printf("[%d] (%d)  %s\n",array[i].arrayindex,array[i].pid,array[i].commandname);
-                        break;
-                    }
-                }   
-            }        
+            for(int i=0;i<MAXJOBS;i++){
+                if(array[i].arrayindex==NULL&&array[i].pid==NULL){
+                    array[i].arrayindex=i+1;
+                    array[i].pid=p;
+                    array[i].status=malloc(7);
+                    memcpy(array[i].status,"running",7);
+                    array[i].commandname=malloc(strlen(toks[0]));
+                    memcpy(array[i].commandname, toks[0], strlen(toks[0]));
+                    printf("[%d] (%d)  %s\n",array[i].arrayindex,array[i].pid,array[i].commandname);
+                    //sigprocmask(SIG_UNBLOCK,&mask,NULL);
+                    break;
+                }
+            }   
+                 
         }
     }
     else{//forground
@@ -166,7 +166,7 @@ void cmd_slay(const char **toks) {
         for(int i=1;i<strlen(toks[1]);i++){
             temp[i-1]=toks[1][i];
         }
-        //printf("argument: %s\n",temp);
+        printf("argument: %s\n",temp);
         int argument=atoi(temp);
         if(array[argument-1].arrayindex==NULL && array[argument-1].pid==NULL){
             printf("ERROR: no job %s\n",toks[1]);
@@ -207,7 +207,7 @@ void cmd_slay(const char **toks) {
         //printf("processid: %d\n",processid);
         int removeid=NULL;
         for(int i=0;i<MAXJOBS;i++){
-            //printf("%d\n",array[i].pid);
+            printf("%d\n",array[i].pid);
             if(array[i].arrayindex==NULL&&array[i].pid==NULL){
                 printf("ERROR: no PID %s\n",toks[1]);
                 break;
