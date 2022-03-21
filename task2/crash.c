@@ -112,10 +112,10 @@ void spawn(const char **toks, bool bg) { // bg is true iff command ended with &
                         array[i].arrayindex=i+1;
                         array[i].pid=p;
                         array[i].status=malloc(0);
-                        memcpy(array[i].status,"",0);
+                        memcpy(array[i].status,"running",7);
                         array[i].commandname=malloc(strlen(toks[0]));
                         memcpy(array[i].commandname, toks[0], strlen(toks[0]));
-                        printf("[%d] (%d)  %s\n",array[i].arrayindex,array[i].pid,array[i].commandname);
+                        printf("[%d] (%d)  %s  %s\n",array[i].arrayindex,array[i].pid,array[i].status,array[i].commandname);
                         break;
                     }
                 }   
