@@ -113,7 +113,7 @@ void spawn(const char **toks, bool bg) { // bg is true iff command ended with &
             buffer[count] = '\0';
             //printf( "read message: %s\n", buffer );
             if ( count <= 0 ) {
-                perror( "read" );
+                //perror( "read" );
                 for(int i=0;i<MAXJOBS;i++){
                     if(array[i].arrayindex==NULL&&array[i].pid==NULL){
                         array[i].arrayindex=i+1;
@@ -162,46 +162,98 @@ void cmd_bg(const char **toks) {
 
 void cmd_slay(const char **toks) {
     if(toks[1][0]=='%'){
-        char *argument=malloc(strlen(toks[1])-1);
+        char *temp=malloc(strlen(toks[1])-1);
         for(int i=1;i<strlen(toks[1]);i++){
-            argument[i-1]=toks[1][i];
+            temp[i-1]=toks[1][i];
         }
-        printf("argument: %s",argument);
-        if(array[(int)(argument)].arrayindex==NULL && array[(int)(argument)].pid!=NULL){
-            printf("ERROR: no job %s",toks[1]);
+        //printf("argument: %s\n",temp);
+        int argument=atoi(temp);
+        if(array[argument-1].arrayindex==NULL && array[argument-1].pid==NULL){
+            printf("ERROR: no job %s\n",toks[1]);
+        }
+        else if(array[argument-1].arrayindex!=NULL && array[argument-1].pid!=NULL){
+            for(int i=argument-1;i<MAXJOBS-1;i++){
+                if(array[i+1].arrayindex!=NULL&&array[i+1].pid!=NULL){
+                    array[i].arrayindex=i+1;
+                    array[i].pid=array[i+1].pid;
+                    array[i].status=malloc(strlen(array[i+1].status));
+                    memcpy(array[i].status,array[i+1].status,strlen(array[i+1].status));
+                    array[i].commandname=malloc(strlen(array[i+1].commandname));
+                    memcpy(array[i].commandname, array[i+1].commandname, strlen(array[i+1].commandname));
+                }
+                else if(array[i+1].arrayindex==NULL && array[i+1].pid==NULL && i+1 != MAXJOBS-1){//reached the last line
+                    array[i].arrayindex=NULL;
+                    array[i].pid=NULL;
+                    array[i].status=malloc(0);
+                    memcpy(array[i].status,"",0);
+                    array[i].commandname=malloc(0);
+                    memcpy(array[i].commandname,"",0);
+                    break;
+                }
+                else if(array[i+1].arrayindex!=NULL && array[i+1].pid!=NULL && i+1 == MAXJOBS-1){//if reaches the end of the array
+                    array[i+1].arrayindex=NULL;
+                    array[i+1].pid=NULL;
+                    array[i].status=malloc(0);
+                    memcpy(array[i].status,"",0);
+                    array[i].commandname=malloc(0);
+                    memcpy(array[i].commandname,"",0);
+                    break;
+                }
+            }
         }
     }
     else{
-        char processid=toks[1];
-        printf("processid: %s",toks[1]);
-        int removeid;
+        int processid=atoi(toks[1]);
+        //printf("processid: %d\n",processid);
+        int removeid=NULL;
         for(int i=0;i<MAXJOBS;i++){
-            if(array[i].arrayindex!=NULL&&array[i].pid!=NULL){
-                printf("ERROR: no PID %s",toks[1]);
+            //printf("%d\n",array[i].pid);
+            if(array[i].arrayindex==NULL&&array[i].pid==NULL){
+                printf("ERROR: no PID %s\n",toks[1]);
+                break;
             }
             else if(array[i].pid==processid){
                 array[i].arrayindex=NULL;
                 array[i].pid=NULL;
-                free(array[i].status);
-                free(array[i].commandname);
+                array[i].status=malloc(0);
+                memcpy(array[i].status,"",0);
+                array[i].commandname=malloc(0);
+                memcpy(array[i].commandname,"",0);
                 removeid=i;
                 break;
             }
         }
-
-        for(int i=removeid;i<MAXJOBS-1;i++){
-            if(array[i+1].arrayindex!=NULL&&array[i+1].pid!=NULL){
-                array[i].arrayindex=array[i+1].arrayindex;
-                array[i].pid=array[i+1].pid;
-                array[i].status=malloc(strlen(array[i+1].status));
-                memcpy(array[i].status,array[i+1].status,strlen(array[i+1].status));
-                array[i].commandname=malloc(strlen(array[i+1].commandname));
-                memcpy(array[i].commandname, array[i+1].commandname, strlen(array[i+1].commandname));
-            }
-            else if(array[i+1].arrayindex==NULL&&array[i+1].pid==NULL){
-                break;
+        if(removeid!=NULL){
+            for(int i=removeid;i<MAXJOBS-1;i++){
+                if(array[i+1].arrayindex!=NULL&&array[i+1].pid!=NULL){
+                    array[i].arrayindex=i+1;
+                    array[i].pid=array[i+1].pid;
+                    array[i].status=malloc(strlen(array[i+1].status));
+                    memcpy(array[i].status,array[i+1].status,strlen(array[i+1].status));
+                    array[i].commandname=malloc(strlen(array[i+1].commandname));
+                    memcpy(array[i].commandname, array[i+1].commandname, strlen(array[i+1].commandname));
+                }
+                else if(array[i+1].arrayindex==NULL && array[i+1].pid==NULL && i+1 != MAXJOBS-1){//reached the last line
+                    array[i].arrayindex=NULL;
+                    array[i].pid=NULL;
+                    array[i].status=malloc(0);
+                    memcpy(array[i].status,"",0);
+                    array[i].commandname=malloc(0);
+                    memcpy(array[i].commandname,"",0);
+                    break;
+                }
+                else if(array[i+1].arrayindex!=NULL && array[i+1].pid!=NULL && i+1 == MAXJOBS-1){//if reaches the end of the array
+                    array[i+1].arrayindex=NULL;
+                    array[i+1].pid=NULL;
+                    array[i].status=malloc(0);
+                    memcpy(array[i].status,"",0);
+                    array[i].commandname=malloc(0);
+                    memcpy(array[i].commandname,"",0);
+                    break;
+                }
             }
         }
+        
     }
     
     
